@@ -24,7 +24,17 @@ banco_de_dados_falso = {
         "email": "recepcao@clinica.com",
         "senha_hash": HASH_SENHA_123,
         "perfil": PerfilAcesso.RECEPCIONISTA
-    }
+    },
+    "cliente@clinica.com": {
+        "email": "cliente@clinica.com",
+        "senha_hash": HASH_SENHA_123,
+        "perfil": PerfilAcesso.CLIENTE
+    },
+    "adm@clinica.com": {
+        "email": "adm@clinica.com",
+        "senha_hash": HASH_SENHA_123,
+        "perfil": PerfilAcesso.ADM
+        }
 }
 
 # ROTA 1: LOGIN (Gera o Token)
