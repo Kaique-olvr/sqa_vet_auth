@@ -1,4 +1,4 @@
-from app.schemas.user_schemas import UsuarioCreate, UsuarioResponse
+from app.schemas.user_schemas import PerfilAcesso, UsuarioCreate, UsuarioResponse
 import pytest
 from pydantic import ValidationError
 
@@ -8,11 +8,11 @@ def test_usuario_create_sucesso():
     senha = "senhaforte1234"
 
     # Intanciando um objeto:
-    usuario = UsuarioCreate(email = email, senha = senha)
-
+    usuario = UsuarioCreate(email=email, senha=senha, perfil_acesso=PerfilAcesso.CLIENTE)
     # Checa se a condição é True ou False para a simulação do teste
     assert usuario.email == email
     assert usuario.senha == senha
+    assert usuario.perfil_acesso == PerfilAcesso.CLIENTE # Verifica se salvou o perfil de acesso correto
 
 
 def test_usuario_create_email_incorreto():
@@ -20,7 +20,8 @@ def test_usuario_create_email_incorreto():
     # Para esse teste PASSAR o pydantic precisa lançar esse ValidationError
     # Se a função não der ValidarionError o teste FALHA 
     with pytest.raises(ValidationError): # Essa linha está monitorando o codigo de baixo
-        UsuarioCreate(email = "email_sem_arroba.com", senha = "senha_certinha_123")
+        # O perfil_acesso é passado certinho para garantir que o erro venha SOMENTE do email
+        UsuarioCreate(email = "email_sem_arroba.com", senha = "senha_certinha_123", perfil_acesso=PerfilAcesso.CLIENTE)
 
 
 def test_usuario_create_senha_incorreta():
@@ -29,17 +30,18 @@ def test_usuario_create_senha_incorreta():
     senha_longa = "a" * 73
 
     with pytest.raises(ValidationError):
-        UsuarioCreate(email = "teste@email.com", senha = senha_curta)
+        UsuarioCreate(email = "teste@email.com", senha = senha_curta, perfil_acesso=PerfilAcesso.CLIENTE)
 
     with pytest.raises(ValidationError):
-            UsuarioCreate(email = "teste@email.com", senha = senha_longa)
+            UsuarioCreate(email = "teste@email.com", senha = senha_longa, perfil_acesso=PerfilAcesso.CLIENTE)
 
 
 def test_usuario_response():
     # Essa função testa se a classe UsuarioResponse está funcionando como deveria
     email = "exemplo@email.com"
 
-    usuario = UsuarioResponse(id = 1, email = email)
+    usuario = UsuarioResponse(id = 1, email = email, perfil_acesso=PerfilAcesso.VETERINARIO)
 
     assert usuario.id == 1
     assert usuario.email == email
+    assert usuario.perfil_acesso == PerfilAcesso.VETERINARIO
