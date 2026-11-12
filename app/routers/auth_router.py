@@ -1,12 +1,38 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.security import criar_token_acesso, verificar_senha
+from app.security import criar_token_acesso, verificar_senha, gerar_hash_senha
 from app.dependencies import get_usuario_atual
-from app.schemas.user_schemas import LoginRequest, TokenResponse
+from app.schemas.user_schemas import LoginRequest, TokenResponse, UsuarioCreate
+from app.repositories.user_repository import _USUARIOS_POR_EMAIL
 from app.repositories.user_repository import buscar_usuario_por_email
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
-# ROTA 1: LOGIN (Gera o Token)
+# ROTA 1: Cadastro (Cria o usuário)
+@router.post("/cadastro",status_code= status.HTTP_201_CREATED)
+def cadastrar_usuario(usuario: UsuarioCreate):
+    # Verifica se o email ja existe no banco de dados
+    if usuario.email in _USUARIOS_POR_EMAIL:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+        detail= "Este email já é utilizado!"
+    )
+      
+    # Faz o hash da senha digitada
+    senha_hash = gerar_hash_senha(usuario.senha)
+
+    # Adiciona o novo usuário no banco de dados
+    _USUARIOS_POR_EMAIL[usuario.email] = {
+        "email": usuario.email,
+        "senha_hash": senha_hash,
+        "perfil": usuario.perfil_acesso
+
+    }
+    return {
+        "mensagem": "Cadastro concluido!",
+        "usuario" : {"email": usuario.email, "perfil": usuario.perfil_acesso}
+    }
+
+
+# ROTA 2: LOGIN (Gera o Token)
 @router.post("/login", response_model=TokenResponse)
 def login(credenciais: LoginRequest):
     # Mensagem ÚNICA para email ou senha errados.
