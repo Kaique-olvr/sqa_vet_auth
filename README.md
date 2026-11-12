@@ -29,4 +29,9 @@ Microsserviço de autenticação e controle de acesso (RBAC) com FastAPI e suít
 3. Clique em "Authorize" e cole o token
 4. Teste GET /auth/meu-perfil e POST /prontuarios (este só libera para veterinário)
 
-Usuários de teste (senha "senha123"): vet@clinica.com (veterinario) e recepcao@clinica.com (recepcionista)
+As contas abaixo são dados de demonstração em memória (senha "senha123"); não são persistidas e são perdidas ao reiniciar a aplicação:
+
+- vet@clinica.com (veterinario)
+- recepcao@clinica.com (recepcionista)
+- cliente@clinica.com (cliente)
+- adm@clinica.com (adm)
