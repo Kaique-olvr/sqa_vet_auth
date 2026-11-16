@@ -24,10 +24,15 @@ Microsserviço de autenticação e controle de acesso (RBAC) com FastAPI e suít
 
 # Testando pelo Swagger (/docs)
 
-1. Em POST /auth/login, envie { "email": "vet@clinica.com", "senha": "senha123" }
-2. Copie o "access_token" da resposta
-3. Clique em "Authorize" e cole o token
+1. Em POST /auth/login, clique em "Try it out" e "Execute" (o exemplo já vem com { "email": "vet@clinica.com", "senha": "senha123" })
+2. Copie só o valor do "access_token", sem as aspas
+3. Clique em "Authorize" e cole o token (não precisa escrever "Bearer")
 4. Teste GET /auth/meu-perfil e POST /prontuarios (este só libera para veterinário)
+
+# Rotas de cadastro
+
+- POST /auth/cadastro: público, cria sempre uma conta com perfil cliente (RN04). Não aceita o campo perfil_acesso.
+- POST /auth/cadastro/funcionario: somente adm (RN03). Cadastra veterinario, recepcionista ou adm. Para veterinario o campo crmv é obrigatório (RF03).
 
 As contas abaixo são dados de demonstração em memória (senha "senha123"); não são persistidas e são perdidas ao reiniciar a aplicação:
 
