@@ -194,3 +194,163 @@ def test_prontuario_sem_token():
     resposta = client.post("/prontuarios")
 
     assert resposta.status_code == 401 # Sem token, nem chega a checar o perfil
+
+
+# TESTES DE CADASTRO DE CLIENTES (RF01 / RN04)
+
+def test_cadastro_cliente_recebe_perfil_cliente():
+    '''
+    Garante que o cadastro público sempre cria a conta com o perfil cliente (RN04)
+    e devolve status 201.
+    '''
+    resposta = client.post("/auth/cadastro", json={"email": "novo.cliente@email.com", "senha": "minhasenha123"})
+
+    assert resposta.status_code == 201 # Cadastro criado
+    assert resposta.json()["usuario"]["perfil"] == "cliente" # Perfil atribuído automaticamente
+
+
+def test_cadastro_publico_nao_aceita_escolher_perfil():
+    '''
+    Garante que não dá para escolher o perfil no cadastro público.
+    Antes qualquer pessoa conseguia criar uma conta "adm" sem estar logada.
+    '''
+    resposta = client.post("/auth/cadastro", json={"email": "quero.ser.adm@email.com", "senha": "12345678", "perfil_acesso": "adm"})
+
+    assert resposta.status_code == 422 # O campo perfil_acesso não existe nessa rota
+    assert resposta.json()["detail"][0]["msg"] == "Campo não permitido nesta rota."
+
+
+@pytest.mark.parametrize('email_repetido', [
+    'vet@clinica.com',     # Igual ao cadastrado
+    'VET@clinica.com',     # Mesma conta com letras maiúsculas
+    ' vet@clinica.com '    # Mesma conta com espaços nas pontas
+])
+def test_cadastro_email_repetido(email_repetido):
+    '''
+    Garante que o mesmo e-mail não vira duas contas, mesmo mudando maiúsculas/minúsculas.
+    '''
+    resposta = client.post("/auth/cadastro", json={"email": email_repetido, "senha": "12345678"})
+
+    assert resposta.status_code == 400 # E-mail já existe
+    assert resposta.json()["detail"] == "Este email já é utilizado!"
+
+
+@pytest.mark.parametrize('senha_invalida, mensagem', [
+    ('        ', "A senha não pode ser formada apenas por espaços."),   # 8 espaços passavam no min_length
+    ('ç' * 72, "A senha passou do limite de 72 bytes. Letras com acento contam como 2, tente uma senha menor.")  # 72 caracteres, mas 144 bytes
+])
+def test_cadastro_senha_invalida_sem_erro_500(senha_invalida, mensagem):
+    '''
+    Garante que senhas em branco ou acima de 72 bytes são barradas com 422 e mensagem clara,
+    em vez de quebrar a API com erro 500 no bcrypt.
+    '''
+    resposta = client.post("/auth/cadastro", json={"email": "senha.ruim@email.com", "senha": senha_invalida})
+
+    assert resposta.status_code == 422
+    assert resposta.json()["detail"][0]["msg"] == mensagem
+
+
+def test_erro_de_validacao_em_portugues():
+    '''
+    Garante que os erros de validação (422) chegam em português e sem devolver a senha digitada.
+    '''
+    resposta = client.post("/auth/cadastro", json={"email": "email_sem_arroba.com", "senha": "123"})
+    erros = {erro["loc"][-1]: erro["msg"] for erro in resposta.json()["detail"]} # Monta {campo: mensagem}
+
+    assert resposta.status_code == 422
+    assert erros["email"] == "E-mail inválido. Use o formato nome@dominio.com."
+    assert erros["senha"] == "Precisa ter no mínimo 8 caracteres."
+    assert "input" not in resposta.json()["detail"][0] # A senha digitada não volta na resposta
+
+
+# TESTES DE CADASTRO DE FUNCIONÁRIOS (RF02 / RF03 / RN03)
+
+def test_cadastro_funcionario_por_adm():
+    '''
+    Confirma que o adm consegue cadastrar um veterinário informando o CRMV.
+    '''
+    token = token_do_usuario("adm@clinica.com")
+    dados = {"email": "nova.vet@clinica.com", "senha": "senhaforte123", "perfil_acesso": "veterinario", "crmv": "SP-12345"}
+    resposta = client.post("/auth/cadastro/funcionario", json=dados, headers=gerar_header(token))
+
+    assert resposta.status_code == 201
+    assert resposta.json()["usuario"]["perfil"] == "veterinario"
+    assert fazer_login("nova.vet@clinica.com", "senhaforte123").status_code == 200 # A conta nova já consegue logar
+
+
+@pytest.mark.parametrize('email_nao_adm', [
+    'vet@clinica.com',
+    'recepcao@clinica.com',
+    'cliente@clinica.com'
+])
+def test_cadastro_funcionario_sem_ser_adm(email_nao_adm):
+    '''
+    Garante que só o adm cadastra funcionários (RN03). Os outros perfis recebem 403.
+    '''
+    token = token_do_usuario(email_nao_adm)
+    dados = {"email": "intruso@clinica.com", "senha": "12345678", "perfil_acesso": "adm"}
+    resposta = client.post("/auth/cadastro/funcionario", json=dados, headers=gerar_header(token))
+
+    assert resposta.status_code == 403
+
+
+def test_cadastro_funcionario_sem_token():
+    resposta = client.post("/auth/cadastro/funcionario", json={"email": "x@clinica.com", "senha": "12345678", "perfil_acesso": "adm"})
+
+    assert resposta.status_code == 401 # Sem token nem chega a validar o perfil
+
+
+@pytest.mark.parametrize('dados, mensagem', [
+    ({"email": "vet.sem.crmv@clinica.com", "senha": "12345678", "perfil_acesso": "veterinario"}, "O CRMV é obrigatório para o perfil veterinario."),
+    ({"email": "vet.crmv.vazio@clinica.com", "senha": "12345678", "perfil_acesso": "veterinario", "crmv": "   "}, "O CRMV é obrigatório para o perfil veterinario."),
+    ({"email": "cliente.errado@clinica.com", "senha": "12345678", "perfil_acesso": "cliente"}, "Clientes devem ser cadastrados pela rota /auth/cadastro.")
+])
+def test_cadastro_funcionario_regras(dados, mensagem):
+    '''
+    Garante que o CRMV é obrigatório para veterinário (RF03) e que cliente não é cadastrado nessa rota.
+    '''
+    token = token_do_usuario("adm@clinica.com")
+    resposta = client.post("/auth/cadastro/funcionario", json=dados, headers=gerar_header(token))
+
+    assert resposta.status_code == 422
+    assert resposta.json()["detail"][0]["msg"] == mensagem
+
+
+# TESTES DE PREVENÇÃO DE ERROS NO LOGIN E NO TOKEN
+
+def test_login_ignora_maiusculas_no_email():
+    resposta = fazer_login("Vet@Clinica.com") # Mesmo e-mail digitado com letras maiúsculas
+
+    assert resposta.status_code == 200
+
+
+def test_login_senha_acima_de_72_bytes():
+    '''
+    Garante que uma senha gigante no login responde 401 normal, e não erro 500.
+    '''
+    resposta = fazer_login("vet@clinica.com", senha="a" * 100)
+
+    assert resposta.status_code == 401
+    assert resposta.json()["detail"] == "E-mail ou senha incorretos"
+
+
+@pytest.mark.parametrize('formato', [
+    'Bearer {token}',   # Colou com "Bearer" no Authorize do Swagger (vira "Bearer Bearer ...")
+    '"{token}"',        # Colou com as aspas da resposta JSON
+    '  {token}  '       # Colou com espaços sobrando
+])
+def test_token_colado_com_erros_comuns(formato):
+    '''
+    Garante que os erros mais comuns ao colar o token no Swagger não bloqueiam o acesso.
+    '''
+    token = token_do_usuario("vet@clinica.com")
+    resposta = client.get("/auth/meu-perfil", headers=gerar_header(formato.format(token=token)))
+
+    assert resposta.status_code == 200
+
+
+def test_mensagem_sem_token_em_portugues():
+    resposta = client.get("/auth/meu-perfil")
+
+    assert resposta.status_code == 401
+    assert resposta.json()["detail"] == "Token não enviado. Faça login em POST /auth/login e cole o access_token no botão Authorize."
