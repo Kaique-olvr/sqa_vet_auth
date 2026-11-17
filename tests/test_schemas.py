@@ -1,4 +1,4 @@
-from app.schemas.user_schemas import PerfilAcesso, UsuarioCreate, UsuarioResponse
+from app.schemas.user_schemas import PerfilAcesso, UsuarioCreate, UsuarioResponse, ClienteCreate, FuncionarioCreate
 import pytest
 from pydantic import ValidationError
 
@@ -46,6 +46,8 @@ def test_usuario_create_email_incorreto(email_incorreto):
 @pytest.mark.parametrize('senha_invalida', [
      '1234',        # Senha curta (< 8: min definido)
      'A' * 73,      # Senha longa (> limite do bcrypt)
+     'ç' * 37,      # 37 caracteres, mas 74 bytes (passa no max_length, não passa no bcrypt)
+     '        ',    # Só espaços
 ])
 def test_usuario_create_senha_incorreta(senha_invalida):
     '''
@@ -75,3 +77,29 @@ def test_usuario_response(user_id, email, perfil):
     assert usuario.id == user_id
     assert usuario.email == email
     assert usuario.perfil_acesso == perfil
+
+def test_cliente_create_nao_tem_perfil():
+    '''
+    Garante que o schema do cadastro público não aceita o campo perfil_acesso (RN04).
+    '''
+    with pytest.raises(ValidationError):
+        ClienteCreate(email="cliente@email.com", senha="senha12345", perfil_acesso=PerfilAcesso.ADM)
+
+
+def test_funcionario_veterinario_exige_crmv():
+    '''
+    Garante que o schema de funcionário exige CRMV quando o perfil é veterinário (RF03).
+    '''
+    with pytest.raises(ValidationError):
+        FuncionarioCreate(email="vet@email.com", senha="senha12345", perfil_acesso=PerfilAcesso.VETERINARIO)
+
+    # Com o CRMV o mesmo cadastro passa
+    funcionario = FuncionarioCreate(email="vet@email.com", senha="senha12345", perfil_acesso=PerfilAcesso.VETERINARIO, crmv="SP-12345")
+    assert funcionario.crmv == "SP-12345"
+
+
+@pytest.mark.parametrize('perfil', [PerfilAcesso.RECEPCIONISTA, PerfilAcesso.ADM])
+def test_funcionario_sem_crmv_para_outros_perfis(perfil):
+    # Recepcionista e adm não precisam de CRMV
+    funcionario = FuncionarioCreate(email="func@email.com", senha="senha12345", perfil_acesso=perfil)
+    assert funcionario.crmv is None
