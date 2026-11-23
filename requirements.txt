@@ -45,6 +45,8 @@ pytest==9.1.1
 pytest-cov==7.1.0
 # Motor de rastreamento de linhas de código executadas
 coverage==7.16.1
+# Testes de carga e desempenho (simula vários usuários ao mesmo tempo)
+locust==2.47.0
 # Leitor de arquivos de configuração
 iniconfig==2.3.0
 # Gerenciador de plugins do ecossistema Pytest

@@ -40,3 +40,20 @@ As contas abaixo são dados de demonstração em memória (senha "senha123"); n�
 - recepcao@clinica.com (recepcionista)
 - cliente@clinica.com (cliente)
 - adm@clinica.com (adm)
+
+# Testes de carga (Locust)
+
+Os cenários ficam em tests/carga/locustfile.py e simulam veterinários, recepcionistas e novos clientes usando a API ao mesmo tempo.
+
+1. Em um terminal, suba a API: uvicorn app.main:app
+2. Em outro terminal, rode um dos cenários:
+
+        # Carga normal: 50 usuários
+        locust -f tests/carga/locustfile.py --host http://127.0.0.1:8000 --headless -u 50 -r 5 -t 90s --html relatorio_50.html
+
+        # Estresse: 200 usuários
+        locust -f tests/carga/locustfile.py --host http://127.0.0.1:8000 --headless -u 200 -r 10 -t 90s --html relatorio_200.html
+
+   Para ver os gráficos ao vivo, rode sem o --headless e abra http://localhost:8089
+
+O teste reprova (código de saída 1) se tiver qualquer erro ou se o p95 do cadastro ou do login passar de 5 segundos (RNF04).
