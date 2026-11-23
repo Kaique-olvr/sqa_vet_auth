@@ -35,6 +35,12 @@ _USUARIOS_POR_EMAIL: dict[str, UsuarioArmazenado] = {
         "senha_hash": _HASH_SENHA_DEMO,
         "perfil": PerfilAcesso.ADM,
     },
+
+    "jáexiste@email.com": {
+        "email": "jáexiste@email.com",
+        "senha_hash": _HASH_SENHA_DEMO,
+        "perfil": PerfilAcesso.CLIENTE,
+    },
 }
 
 
