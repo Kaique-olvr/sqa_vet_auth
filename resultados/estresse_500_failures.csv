@@ -1,0 +1,6 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,POST /auth/cadastro,CatchResponseError('Passou do limite de 5000 ms do RNF04'),70,2026-11-24T00:05:55Z,2026-11-24T00:06:16Z
+POST,"POST /prontuarios (recepção, 403)",CatchResponseError('Passou do limite de 5000 ms do RNF04'),9,2026-11-24T00:06:12Z,2026-11-24T00:06:15Z
+POST,POST /prontuarios (vet),CatchResponseError('Passou do limite de 5000 ms do RNF04'),131,2026-11-24T00:06:04Z,2026-11-24T00:06:18Z
+POST,POST /auth/login,CatchResponseError('Passou do limite de 5000 ms do RNF04'),35,2026-11-24T00:06:10Z,2026-11-24T00:06:15Z
+GET,GET /auth/meu-perfil,CatchResponseError('Passou do limite de 5000 ms do RNF04'),375,2026-11-24T00:06:04Z,2026-11-24T00:06:18Z

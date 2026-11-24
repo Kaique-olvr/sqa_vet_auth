@@ -80,3 +80,11 @@ def test_criar_token_acesso():
     # Exemplo: | (12:30 - 12:00) - 00:30) |
     # Esse resultado tem que ser menor que 5 segundos, que é uma tolerencia para o processador conseguir rodar tranquilo
     assert abs((tempo_expiracao - agora) - duracao_esperada) < timedelta(seconds=5)
+
+def test_verificar_senha_acima_de_72_bytes():
+    '''
+    Garante que uma senha maior que 72 bytes retorna False, em vez de lançar erro no bcrypt
+    '''
+    hash_gerado = gerar_hash_senha("senhanormal")
+
+    assert verificar_senha("a" * 100, hash_gerado) is False # Senha gigante nunca bate com uma senha cadastrada

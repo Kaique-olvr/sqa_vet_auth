@@ -20,6 +20,12 @@ def verificar_senha(senha_original: str, hash_senha: str) -> bool:
        Retorna um valor Booleano'''
 
     senha_bytes = senha_original.encode('utf-8') # Transforma a senha digitada em bytes
+
+    # O bcrypt 5 lança erro com senha acima de 72 bytes, o que virava um 500 no login.
+    # Nenhuma senha cadastrada pode passar desse limite, então uma senha maior já é considerada errada
+    if len(senha_bytes) > 72:
+        return False
+
     hash_senha = hash_senha.encode('utf-8') # Transforma o hash da senha salva em bytes
     return bcrypt.checkpw(senha_bytes, hash_senha) # Compara o bytes da senha digitada e do hash salvo e retorna um booleano 
 

@@ -7,7 +7,8 @@ from app.schemas.user_schemas import PerfilAcesso
 '''O HTTPBearer é uma classe do FastAPI que extrai o token de acesso do cabeçalho da requisição HTTP.
 
 Ele espera receber o token no Header da requisição no formato: "Authorization: Bearer <token_jwt>"
-Se o header não for enviado (ou não for do tipo Bearer), ele mesmo já responde 401 automaticamente.
+Com auto_error=False ele NÃO responde sozinho quando o header falta (a resposta padrão era "Not authenticated", em inglês).
+Assim a gente mesmo devolve o 401 com uma mensagem em português explicando o que fazer.
 '''
 
 '''Por que HTTPBearer e não OAuth2PasswordBearer?
@@ -15,19 +16,42 @@ O OAuth2PasswordBearer espera que o login seja feito por FORMULÁRIO (campos "us
 mas o nosso /auth/login recebe JSON (email e senha). Com o HTTPBearer, o botão "Authorize" do Swagger (/docs)
 pede direto o token: basta fazer o login, copiar o "access_token" e colar lá.
 '''
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(
+    auto_error=False,
+    description="Cole aqui somente o access_token devolvido pelo POST /auth/login, sem a palavra Bearer e sem aspas."
+)
 
-def get_usuario_atual(credenciais: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+def limpar_token(token: str) -> str:
+    '''Corrige os erros mais comuns de quem cola o token no botão "Authorize" do Swagger:
+       - colar "Bearer eyJ..." (o Swagger já coloca o Bearer, então ficava "Bearer Bearer eyJ...")
+       - colar o token com as aspas que vêm na resposta JSON ("eyJ...")
+       Retorna o token limpo em str'''
+
+    token = token.strip().strip('"').strip("'").strip() # Tira espaços e aspas das pontas
+
+    if token.lower().startswith("bearer "): # Remove o "Bearer " que foi colado junto
+        token = token[7:].strip()
+
+    return token
+
+def get_usuario_atual(credenciais: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)):
     """
     Função principal que pega o token da requisição, decodifica e retorna os dados do usuário. Se o token for inválido ou não contiver as informações necessárias, uma exceção HTTP 401 é levantada.
     """
+    if credenciais is None: # Nenhum token foi enviado no header Authorization
+        raise HTTPException(
+            status_code = status.HTTP_401_UNAUTHORIZED,
+            detail = "Token não enviado. Faça login em POST /auth/login e cole o access_token no botão Authorize.",
+            headers = {"WWW-Authenticate": "Bearer"}
+        )
+
     credenciais_exception = HTTPException(
         status_code = status.HTTP_401_UNAUTHORIZED,
         detail = "Credenciais inválidas",
         headers = {"WWW-Authenticate": "Bearer"}
     )
 
-    token = credenciais.credentials # Pega somente o token, sem a palavra "Bearer" na frente
+    token = limpar_token(credenciais.credentials) # Pega somente o token, sem a palavra "Bearer" na frente
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # Decodifica o token JWT usando a chave secreta e o algoritmo especificado
